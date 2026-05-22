@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0a0a0f"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="FlowBudget"/>
+  <title>FlowBudget</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    /* ---- Extra Home Screen Styles ---- */
+    .home-hero {
+      margin: 0 0 16px;
+      background: linear-gradient(160deg,#141428 0%,#0d0d1f 100%);
+      border-radius: 0 0 28px 28px;
+      padding: 0 20px 24px;
+      position: relative; overflow: hidden;
+    }
+    [data-theme="light"] .home-hero {
+      background: linear-gradient(160deg,#1a1a3a 0%,#1e1e48 100%);
+    }
+    .home-hero::before {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background: radial-gradient(ellipse at 80% 20%,rgba(99,102,241,0.18) 0%,transparent 60%);
+    }
+    .hero-month-row { display:flex; align-items:center; justify-content:space-between; padding-top:4px; margin-bottom:16px; }
+    .hero-month-label { font-size:0.72rem; color:rgba(255,255,255,0.4); letter-spacing:0.12em; font-weight:600; }
+    .hero-add-btn {
+      width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.12);
+      border:none; color:#fff; font-size:1.2rem; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:all 0.2s ease;
+    }
+    .hero-add-btn:hover { background:rgba(255,255,255,0.2); }
+    .hero-balance-label { font-size:0.7rem; color:rgba(255,255,255,0.35); letter-spacing:0.05em; margin-bottom:4px; }
+    .hero-main-balance {
+      font-size:2.8rem; font-weight:800; color:#fff; letter-spacing:-0.05em; line-height:1; margin-bottom:4px;
+    }
+    .hero-main-balance .currency { font-size:1.4rem; font-weight:500; opacity:0.6; vertical-align:super; }
+    .hero-check-badge {
+      display:inline-flex; align-items:center; gap:5px; padding:4px 10px;
+      background:rgba(255,255,255,0.1); border-radius:20px;
+      font-size:0.7rem; color:rgba(255,255,255,0.6); font-weight:500; margin-bottom:16px;
+    }
+    .hero-check-dot { width:6px; height:6px; border-radius:50%; background:#6366f1; display:inline-block; }
+    canvas#sparkline { width:100%; height:80px; margin:12px 0 16px; display:block; opacity:0.9; }
+    .hero-row {
+      display:flex; align-items:center; gap:16px;
+      font-size:0.8rem; color:rgba(255,255,255,0.45);
+    }
+    .hero-row-item { display:flex; align-items:center; gap:5px; }
+    .hero-row-dot { width:7px; height:7px; border-radius:50%; }
+
+    /* Category chips row */
+    .cat-chips-section { padding: 0 0 4px; }
+    .cat-chips-scroll { display:flex; gap:10px; overflow-x:auto; padding:0 20px 4px; scroll-snap-type:x mandatory; }
+    .cat-chips-scroll::-webkit-scrollbar { display:none; }
+    .home-cat-chip {
+      display:flex; align-items:center; gap:10px;
+      padding:14px 16px; min-width:130px; scroll-snap-align:start; flex-shrink:0;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:18px; cursor:pointer; transition:all 0.2s ease; position:relative;
+    }
+    .home-cat-chip:hover { background:var(--surface2); transform:translateY(-1px); }
+    .chip-icon { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+    .chip-name { font-size:0.72rem; color:var(--text3); font-weight:500; margin-bottom:2px; }
+    .chip-amount { font-size:0.95rem; font-weight:800; letter-spacing:-0.02em; }
+    .chip-indicator { position:absolute; bottom:0; left:16px; right:16px; height:2px; border-radius:2px; }
+
+    /* Recent section */
+    .recent-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 10px; }
+    .recent-title { font-size:1rem; font-weight:700; }
+    .recent-all { font-size:0.82rem; color:var(--accent); font-weight:600; cursor:pointer; }
+    #recent-list { padding:0 20px; }
+
+    /* Budget screen */
+    .unallocated-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:16px 18px; margin-bottom:14px;
+      display:flex; align-items:center; gap:14px;
+    }
+    .unalloc-label { font-size:0.75rem; color:var(--text3); margin-bottom:4px; }
+    .unalloc-val { font-size:1.1rem; font-weight:800; color:var(--accent); }
+    .unalloc-bar-track { flex:1; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+    .unalloc-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.5s ease; }
+
+    /* Afford tool */
+    .afford-tool {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius-lg); padding:22px; margin-bottom:20px;
+    }
+    .afford-title { font-size:1rem; font-weight:700; margin-bottom:4px; }
+    .afford-sub { font-size:0.8rem; color:var(--text3); margin-bottom:16px; }
+    .afford-inputs { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+
+    /* Score ring fix */
+    #score-ring-svg { transform:rotate(-90deg); }
+
+    /* Section divider */
+    .section-divider { height:1px; background:var(--border); margin:4px 0 16px; }
+
+    /* More screen cards */
+    .more-section { margin-bottom:28px; }
+    .more-section-title {
+      font-size:0.7rem; color:var(--text3); letter-spacing:0.1em;
+      text-transform:uppercase; font-weight:700; margin-bottom:12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background mesh -->
+<div class="bg-mesh"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ==================== ONBOARDING ==================== -->
+<div id="onboarding">
+  <div class="onboard-hero">
+    <span class="onboard-emoji">💸</span>
+    <h1 class="onboard-title">
+      Smart money,<br>
+      <span class="gradient-text">smart life.</span>
+    </h1>
+    <p class="onboard-sub">Track your salary, split your budget, and reach your financial goals.</p>
+  </div>
+  <div class="onboard-form">
+    <div class="form-group">
+      <label class="form-label">Monthly salary</label>
+      <div class="input-prefix">
+        <span class="prefix">$</span>
+        <input id="ob-salary" class="form-input" type="number" placeholder="3,500" min="0"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Current savings</label>
+      <div class="input-prefix">
+        <span class="prefix">$</span>
+        <input id="ob-savings" class="form-input" type="number" placeholder="0" min="0"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Extra income (optional)</label>
+      <div class="input-prefix">
+        <span class="prefix">$</span>
+        <input id="ob-extra" class="form-input" type="number" placeholder="0" min="0"/>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="completeOnboarding()">Get started →</button>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="app" style="display:none">
+
+  <!-- Desktop Sidebar -->
+  <aside class="desktop-sidebar">
+    <div class="logo">
+      <div class="logo-icon">💸</div>
+      <div class="logo-text">Flow<span>Budget</span></div>
+    </div>
+    <div class="nav-items">
+      <button class="nav-item active" data-tab="home" onclick="switchTab('home')"><span class="nav-icon">🏠</span> Home</button>
+      <button class="nav-item" data-tab="budget" onclick="switchTab('budget')"><span class="nav-icon">📊</span> Budget</button>
+      <button class="nav-item" data-tab="expenses" onclick="switchTab('expenses')"><span class="nav-icon">💳</span> Expenses</button>
+      <button class="nav-item" data-tab="goals" onclick="switchTab('goals')"><span class="nav-icon">🎯</span> Goals</button>
+      <button class="nav-item" data-tab="more" onclick="switchTab('more')"><span class="nav-icon">✨</span> Insights</button>
+    </div>
+    <div style="margin-top:auto">
+      <button class="nav-item" onclick="openSettings()"><span class="nav-icon">⚙️</span> Settings</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Top Header (mobile) -->
+    <header class="top-header">
+      <div class="logo">
+        <div class="logo-icon">💸</div>
+        <div class="logo-text">Flow<span>Budget</span></div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- PWA Install Banner -->
+    <div id="install-banner">
+      <div class="install-text">
+        <strong>Install FlowBudget</strong>
+        Use it like a native app
+      </div>
+      <button class="install-btn" onclick="installApp()">Install</button>
+    </div>
+
+    <!-- ===== HOME SCREEN ===== -->
+    <div id="screen-home" class="screen active" style="padding:0">
+
+      <!-- Hero Card -->
+      <div class="home-hero">
+        <div class="hero-month-row">
+          <span class="hero-month-label" id="hero-month">SEPTEMBER</span>
+          <button class="hero-add-btn" onclick="openAddExpense()">+</button>
+        </div>
+        <div class="hero-balance-label">Balance</div>
+        <div class="hero-main-balance" id="hero-balance"><span class="currency">$</span>0.00</div>
+        <div class="hero-check-badge"><span class="hero-check-dot"></span> Checking</div>
+        <canvas id="sparkline" width="600" height="160"></canvas>
+        <div class="hero-row">
+          <div class="hero-row-item">
+            <div class="hero-row-dot" style="background:#f43f5e"></div>
+            <span>Spent: <strong id="hero-spent-val" style="color:#fff">$0</strong></span>
+          </div>
+          <div class="hero-row-item">
+            <div class="hero-row-dot" style="background:#10b981"></div>
+            <span>Income: <strong id="hero-income-val" style="color:#fff">$0</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Chips -->
+      <div class="cat-chips-section" style="padding-top:20px">
+        <div class="cat-chips-scroll" id="cat-chips"></div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="recent-header">
+        <div class="recent-title">Recent</div>
+        <div class="recent-all" onclick="switchTab('expenses')">All →</div>
+      </div>
+      <div id="recent-list"></div>
+      <div style="height:16px"></div>
+
+    </div><!-- /home -->
+
+    <!-- ===== BUDGET SCREEN ===== -->
+    <div id="screen-budget" class="screen">
+      <div class="section-header">
+        <div class="section-title">Budget Split</div>
+        <div class="section-action" onclick="openAddCategory()">+ Add</div>
+      </div>
+      <div class="unallocated-card">
+        <div>
+          <div class="unalloc-label">Unallocated</div>
+          <div class="unalloc-val" id="unallocated-val">$0</div>
+        </div>
+        <div class="unalloc-bar-track">
+          <div class="unalloc-bar-fill" id="unallocated-bar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="category-grid" id="cat-grid"></div>
+    </div>
+
+    <!-- ===== EXPENSES SCREEN ===== -->
+    <div id="screen-expenses" class="screen">
+      <div class="section-header">
+        <div class="section-title">Expenses</div>
+        <div class="section-action" onclick="openAddExpense()">+ Add</div>
+      </div>
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input id="exp-search" type="text" placeholder="Search expenses…"/>
+      </div>
+      <div class="tag-row" id="exp-cat-tags"></div>
+      <div id="expense-list-cont"></div>
+    </div>
+
+    <!-- ===== GOALS SCREEN ===== -->
+    <div id="screen-goals" class="screen">
+      <div class="section-header">
+        <div class="section-title">Savings Goals</div>
+        <div class="section-action" onclick="openAddGoal()">+ Add</div>
+      </div>
+      <div id="goals-cont"></div>
+    </div>
+
+    <!-- ===== MORE / INSIGHTS SCREEN ===== -->
+    <div id="screen-more" class="screen">
+
+      <!-- Insights -->
+      <div class="more-section">
+        <div class="more-section-title">Smart Insights</div>
+        <div class="insights-scroll" id="insights-cont"></div>
+      </div>
+
+      <!-- Financial Health -->
+      <div class="more-section">
+        <div class="more-section-title">Financial Health</div>
+        <div class="health-score-card">
+          <div class="score-ring">
+            <svg id="score-ring-svg" width="140" height="140" viewBox="0 0 140 140">
+              <circle class="ring-bg" cx="70" cy="70" r="54"/>
+              <circle id="score-fill" class="ring-fill" cx="70" cy="70" r="54"
+                stroke-dasharray="339.3" stroke-dashoffset="339.3"/>
+            </svg>
+            <div class="score-value" id="score-num">0</div>
+          </div>
+          <div class="score-status" id="score-status">Calculating…</div>
+          <div class="score-desc">Based on your savings rate, spending habits, and remaining balance.</div>
+          <div class="score-tips" id="score-tips-cont"></div>
+        </div>
+      </div>
+
+      <!-- Can I Afford This? -->
+      <div class="more-section">
+        <div class="more-section-title">Can I Afford This?</div>
+        <div class="afford-tool">
+          <div class="afford-title">💭 Quick check</div>
+          <div class="afford-sub">Enter an item to see if it fits your budget</div>
+          <div class="afford-inputs">
+            <input id="afford-name" class="form-input" type="text" placeholder="Item name (e.g. AirPods)"/>
+            <div class="input-prefix">
+              <span class="prefix">$</span>
+              <input id="afford-price" class="form-input" type="number" placeholder="0.00" min="0"/>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="checkAfford()">Check it →</button>
+          <div id="afford-result" class="afford-result"></div>
+        </div>
+      </div>
+
+      <!-- Lifestyle Converter -->
+      <div class="more-section">
+        <div class="more-section-title">Lifestyle Value</div>
+        <div style="font-size:0.8rem;color:var(--text3);margin-bottom:12px">Your remaining budget equals…</div>
+        <div class="lifestyle-grid" id="lifestyle-grid"></div>
+      </div>
+
+      <!-- Spending Heatmap -->
+      <div class="more-section">
+        <div class="more-section-title">Spending Heatmap</div>
+        <div class="heatmap-wrap" id="heatmap-cont"></div>
+      </div>
+
+      <!-- Monthly Recap -->
+      <div class="more-section">
+        <div class="more-section-title">Monthly Recap</div>
+        <div class="recap-row">
+          <div class="recap-card">
+            <div class="recap-title">Total spent</div>
+            <div class="recap-value text-red" id="recap-total">$0</div>
+          </div>
+          <div class="recap-card">
+            <div class="recap-title">Savings rate</div>
+            <div class="recap-value text-green" id="recap-savrate">0%</div>
+          </div>
+        </div>
+        <div class="recap-row">
+          <div class="recap-card">
+            <div class="recap-title">Biggest category</div>
+            <div class="recap-value" id="recap-bigcat">—</div>
+          </div>
+          <div class="recap-card">
+            <div class="recap-title">Biggest expense</div>
+            <div class="recap-value" id="recap-bigexp" style="font-size:0.95rem">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recurring -->
+      <div class="more-section">
+        <div class="section-header mb-0">
+          <div class="more-section-title" style="margin:0">Recurring Expenses</div>
+          <div class="section-action" onclick="openAddRecurring()">+ Add</div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="recurring-list" id="recurring-list"></div>
+      </div>
+
+    </div><!-- /more -->
+
+  </div><!-- /main-content -->
+
+  <!-- Bottom Nav -->
+  <nav id="bottom-nav">
+    <button class="nav-item active" data-tab="home" onclick="switchTab('home')">
+      <span class="nav-icon">🏠</span>Home
+    </button>
+    <button class="nav-item" data-tab="budget" onclick="switchTab('budget')">
+      <span class="nav-icon">📊</span>Budget
+    </button>
+    <button class="nav-item" data-tab="expenses" onclick="switchTab('expenses')">
+      <span class="nav-icon">💳</span>Expenses
+    </button>
+    <button class="nav-item" data-tab="goals" onclick="switchTab('goals')">
+      <span class="nav-icon">🎯</span>Goals
+    </button>
+    <button class="nav-item" data-tab="more" onclick="switchTab('more')">
+      <span class="nav-icon">✨</span>Insights
+    </button>
+  </nav>
+
+  <!-- FAB -->
+  <button id="fab" onclick="fabAction()">+</button>
+
+</div><!-- /app -->
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Add / Edit Expense -->
+<div id="modal-add-expense" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-add-expense')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-exp-title">Add Expense</div>
+      <button class="modal-close" onclick="closeModal('modal-add-expense')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-expense-id"/>
+      <form id="add-expense-form" onsubmit="return false">
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input id="expense-name" class="form-input" type="text" placeholder="e.g. Trader Joe's"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount</label>
+          <div class="input-prefix">
+            <span class="prefix">$</span>
+            <input id="expense-amount" class="form-input" type="number" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="expense-cat" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Note (optional)</label>
+          <input id="expense-note" class="form-input" type="text" placeholder="Add a note…"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input id="expense-date" class="form-input" type="date"/>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" type="button" onclick="saveExpense()">Save</button>
+          <button class="btn-danger" type="button" onclick="deleteCurrentExpense()" id="del-exp-btn">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Category -->
+<div id="modal-add-cat" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-add-cat')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cat-title">Add Category</div>
+      <button class="modal-close" onclick="closeModal('modal-add-cat')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Category name</label>
+        <input id="cat-name-input" class="form-input" type="text" placeholder="e.g. Health"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icon</label>
+        <div class="icon-picker" id="cat-icon-picker"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color</label>
+        <div class="color-picker" id="cat-color-picker"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mode</label>
+        <div class="mode-row">
+          <button class="mode-btn active" data-mode="fixed" onclick="setCatMode('fixed',this)">Fixed $</button>
+          <button class="mode-btn" data-mode="pct" onclick="setCatMode('pct',this)">Percentage %</button>
+        </div>
+        <input type="hidden" id="cat-mode" value="fixed"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount / Percentage</label>
+        <input id="cat-amount-input" class="form-input" type="number" placeholder="0" min="0" step="0.01"/>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="saveCategory()">Save</button>
+        <button class="btn-danger" onclick="deleteEditCategory()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Goal -->
+<div id="modal-add-goal" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-add-goal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">New Goal</div>
+      <button class="modal-close" onclick="closeModal('modal-add-goal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Goal name</label>
+        <input id="goal-name-input" class="form-input" type="text" placeholder="e.g. iPhone 16 Pro"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icon</label>
+        <input id="goal-icon-input" class="form-input" type="text" placeholder="🎯" maxlength="2" style="width:80px;text-align:center;font-size:1.4rem"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target amount</label>
+        <div class="input-prefix">
+          <span class="prefix">$</span>
+          <input id="goal-target-input" class="form-input" type="number" placeholder="1,200" min="0"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Already saved</label>
+        <div class="input-prefix">
+          <span class="prefix">$</span>
+          <input id="goal-saved-input" class="form-input" type="number" placeholder="0" min="0"/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="saveGoal()">Save Goal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Recurring -->
+<div id="modal-add-recurring" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-add-recurring')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Recurring Expense</div>
+      <button class="modal-close" onclick="closeModal('modal-add-recurring')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input id="rec-name" class="form-input" type="text" placeholder="e.g. Netflix"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monthly amount</label>
+        <div class="input-prefix">
+          <span class="prefix">$</span>
+          <input id="rec-amount" class="form-input" type="number" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select id="rec-cat" class="form-select"></select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="saveRecurring()">Add Recurring</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="modal-settings" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-settings')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Settings</div>
+      <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <div class="settings-title">Finance</div>
+        <div class="settings-card">
+          <div class="settings-row" onclick="openEditSalary()">
+            <span class="settings-row-icon">💵</span>
+            <span class="settings-row-label">Monthly Salary</span>
+            <span class="settings-row-value" id="setting-salary">$0</span>
+          </div>
+          <div class="settings-row" onclick="openEditSalary()">
+            <span class="settings-row-icon">🏦</span>
+            <span class="settings-row-label">Current Savings</span>
+            <span class="settings-row-value" id="setting-savings">$0</span>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">Appearance</div>
+        <div class="settings-card">
+          <div class="settings-row" onclick="toggleTheme()">
+            <span class="settings-row-icon">🌙</span>
+            <span class="settings-row-label">Light Mode</span>
+            <button id="theme-toggle" class="toggle" onclick="event.stopPropagation();toggleTheme()"></button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">Data</div>
+        <div class="settings-card">
+          <div class="settings-row" onclick="resetAllData()" style="color:var(--red)">
+            <span class="settings-row-icon">🗑️</span>
+            <span class="settings-row-label" style="color:var(--red)">Reset all data</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Salary -->
+<div id="modal-edit-salary" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-edit-salary')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Edit Income</div>
+      <button class="modal-close" onclick="closeModal('modal-edit-salary')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Monthly salary</label>
+        <div class="input-prefix">
+          <span class="prefix">$</span>
+          <input id="edit-salary-val" class="form-input" type="number" min="0"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Extra income</label>
+        <div class="input-prefix">
+          <span class="prefix">$</span>
+          <input id="edit-extra-val" class="form-input" type="number" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current savings</label>
+        <div class="input-prefix">
+          <span class="prefix">$</span>
+          <input id="edit-savings-val" class="form-input" type="number" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="saveEditSalary()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
